@@ -1,0 +1,16 @@
+version: "3.8"
+
+services:
+  mysql_service:
+    image: mysql
+    ports:
+      - 3306:3306
+    networks:
+      - nestjs_api
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: example
+      MYSQL_ROOT_PASSWORD: example
+
+networks:
+  nestjs_api:
