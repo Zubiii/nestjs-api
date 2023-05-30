@@ -1,40 +1,43 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
+import * as argon from 'argon2'
+
 import { PrismaService } from 'src/prisma/prisma.service';
 import { AuthDto } from './dto';
-
-import * as argon from 'argon2'
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class AuthService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private jwtService: JwtService,
+    private config: ConfigService
+  ) {}
 
   async signin(dto: AuthDto) {
-    // Get user from db
     const user = await this.prisma.user.findUnique({
       where: {
         email: dto.email
       }
     })
 
-    // send error to user
     if (!user) throw new NotFoundException('User name or password is wrong, please try again!')
 
-    // if user exist compare his password
     const passMatch = await argon.verify(user.hash, dto.password)
 
-    // Send back the user
     if (!passMatch) throw new NotFoundException('User name or password is wrong, please try again!')
 
-    delete user.hash
-    return user
+    const {id, email, firstName, lastName} = user
+
+    return {
+      access_token: await this.siginToken(id, email, firstName, lastName) 
+    }
   }
 
   async signup(dto: AuthDto) {
    try{
-     // Generating the password Hash
      const hash = await argon.hash(dto.password)
 
-     // Save the new User in DB
      const newUser = await this.prisma.user.create({
        data: {
          email: dto.email,
@@ -56,5 +59,19 @@ export class AuthService {
     }
     throw error
    }
+  }
+
+  siginToken(id: Number, email: String, firstName: String, lastName: String): Promise<String> {
+    const payload = { 
+      sub: id,
+      email,
+      firstName,
+      lastName
+    }
+
+    return this.jwtService.signAsync(payload, {
+      secret: this.config.get('JWT_SECRET'),
+      expiresIn: '15m'
+    })
   }
 }
