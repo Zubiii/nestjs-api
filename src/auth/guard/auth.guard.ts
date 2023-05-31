@@ -1,15 +1,27 @@
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import { Reflector } from "@nestjs/core";
 import { JwtService } from "@nestjs/jwt";
 
 @Injectable()
 export class AuthGaurd implements CanActivate {
     constructor(
         private jwtService: JwtService,
-        private config: ConfigService
+        private config: ConfigService,
+        private reflector: Reflector
     ) {}
 
     async canActivate(context: ExecutionContext): Promise<boolean>{
+        // if route is decorate with the '@Pulic()' decorator then authguard will automatically returns true and validates the req
+        const IS_PUBLIC_KEY = 'isPublic'
+        const isPublic = this.reflector.getAllAndOverride(IS_PUBLIC_KEY, [
+            context.getHandler(),
+            context.getClass()
+        ])
+        console.log('isPublic => ', isPublic)
+
+        if(isPublic) return true
+
         const request = context.switchToHttp().getRequest()
         const token = this.extractTokenFromHeader(request)
 
